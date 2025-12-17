@@ -8,13 +8,21 @@ const ProtectedRoute = ({ children }) => {
     // Backend'dan authentication holatini tekshirish
     const checkAuth = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE || '/api'}/user/`, {
+        const API_BASE = import.meta.env.VITE_API_BASE || '/api'
+        const res = await fetch(`${API_BASE}/check-auth/`, {
           method: 'GET',
           credentials: 'include',
           mode: 'cors',
         })
-        setIsAuthenticated(res.ok)
+        
+        if (res.ok) {
+          const data = await res.json()
+          setIsAuthenticated(data.authenticated === true)
+        } else {
+          setIsAuthenticated(false)
+        }
       } catch (err) {
+        console.warn('Auth check error:', err)
         setIsAuthenticated(false)
       }
     }
