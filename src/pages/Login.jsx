@@ -13,13 +13,15 @@ const Login = () => {
     const getCsrfToken = async () => {
       try {
         const API_BASE = import.meta.env.VITE_API_BASE || '/api'
-        await fetch(`${API_BASE}/csrf/`, {
+        const res = await fetch(`${API_BASE}/csrf/`, {
           method: 'GET',
           credentials: 'include',
           mode: 'cors',
         })
+        // Response'ni o'qish cookie'ni saqlash uchun
+        await res.json().catch(() => {})
       } catch (err) {
-        console.warn('CSRF token olishda xatolik:', err)
+        // Xatolikni e'tiborsiz qoldiramiz
       }
     }
     getCsrfToken()

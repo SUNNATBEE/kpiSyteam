@@ -2,45 +2,66 @@ const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 const getCsrfToken = () => {
   // Bir nechta usul bilan CSRF token'ni topish
-  const match1 = document.cookie.match(/csrftoken=([^;]+)/)
-  const match2 = document.cookie.match(/csrftoken=([^;]+)/i)
-  return match1 ? match1[1] : (match2 ? match2[1] : '')
+  // Barcha cookie'larni o'qish
+  const cookies = document.cookie.split(';')
+  for (let cookie of cookies) {
+    const [name, value] = cookie.trim().split('=')
+    if (name === 'csrftoken' && value) {
+      return decodeURIComponent(value)
+    }
+  }
+  return ''
 }
 
 const ensureCsrfCookie = async () => {
   // Agar token bor bo'lsa, qaytaramiz
-  if (getCsrfToken()) {
-    return getCsrfToken()
+  let token = getCsrfToken()
+  if (token) {
+    return token
   }
   
   try {
-    // CSRF cookie olish - bir necha marta urinib ko'ramiz
-    for (let i = 0; i < 3; i++) {
-      const res = await fetch(`${API_BASE}/csrf/`, {
-        method: 'GET',
-        credentials: 'include',
-        mode: 'cors',
-      })
-      
-      if (!res.ok) {
-        console.warn(`CSRF cookie olishda xatolik (${i + 1}/3):`, res.status)
-        if (i < 2) {
-          await new Promise(resolve => setTimeout(resolve, 200))
-          continue
+    // CSRF cookie olish
+    const res = await fetch(`${API_BASE}/csrf/`, {
+      method: 'GET',
+      credentials: 'include',
+      mode: 'cors',
+    })
+    
+    if (!res.ok) {
+      console.warn('CSRF cookie olishda xatolik:', res.status)
+      // Response'dan token olishga harakat qilamiz
+      try {
+        const data = await res.json()
+        if (data.csrf_token) {
+          return data.csrf_token
         }
-        return null
+      } catch (e) {
+        // JSON emas
       }
-      
-      // Cookie'ni o'qish uchun biroz kutamiz
-      await new Promise(resolve => setTimeout(resolve, 150))
-      
-      const token = getCsrfToken()
-      if (token) {
-        return token
-      }
+      return null
     }
     
-    console.warn('CSRF token cookie\'dan o\'qilmadi, barcha urinishlar tugadi')
+    // Response'dan token olish
+    try {
+      const data = await res.json()
+      if (data.csrf_token) {
+        token = data.csrf_token
+      }
+    } catch (e) {
+      // JSON emas, cookie'dan o'qish
+    }
+    
+    // Cookie'ni o'qish uchun biroz kutamiz
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    // Cookie'dan o'qish
+    token = getCsrfToken()
+    if (token) {
+      return token
+    }
+    
+    // Agar hali ham yo'q bo'lsa, null qaytaramiz
     return null
   } catch (err) {
     console.warn('CSRF cookie olishda xatolik:', err)
@@ -54,7 +75,7 @@ export const loginUser = async (username, password) => {
   
   // Agar token hali ham yo'q bo'lsa, cookie'dan qayta o'qish
   if (!csrfToken) {
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await new Promise(resolve => setTimeout(resolve, 150))
     csrfToken = getCsrfToken()
   }
   
@@ -67,25 +88,29 @@ export const loginUser = async (username, password) => {
         mode: 'cors',
       })
       if (res.ok) {
-        await new Promise(resolve => setTimeout(resolve, 200))
-        csrfToken = getCsrfToken()
+        const data = await res.json().catch(() => ({}))
+        if (data.csrf_token) {
+          csrfToken = data.csrf_token
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 150))
+          csrfToken = getCsrfToken()
+        }
       }
     } catch (err) {
-      console.warn('CSRF token olishda xatolik:', err)
+      // Xatolikni e'tiborsiz qoldiramiz
     }
-  }
-  
-  // Agar hali ham yo'q bo'lsa, xatolik
-  if (!csrfToken) {
-    throw new Error('CSRF token olinmadi. Sahifani yangilab qayta urinib ko\'ring.')
   }
   
   // JSON formatida yuborish
   const headers = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    'X-CSRFToken': csrfToken,
     'X-Requested-With': 'XMLHttpRequest',
+  }
+  
+  // Agar token bor bo'lsa, qo'shamiz
+  if (csrfToken) {
+    headers['X-CSRFToken'] = csrfToken
   }
 
   const res = await fetch(`${API_BASE}/`, {
