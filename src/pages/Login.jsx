@@ -16,7 +16,7 @@ const Login = () => {
       await loginUser(form.username, form.password)
       navigate('/')
     } catch (err) {
-      setError("Foydalanuvchi nomi yoki parol noto'g'ri")
+      setError(err.message || "Foydalanuvchi nomi yoki parol noto'g'ri")
     } finally {
       setLoading(false)
     }

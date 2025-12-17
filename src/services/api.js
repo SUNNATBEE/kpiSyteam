@@ -7,10 +7,17 @@ const getCsrfToken = () => {
 
 const ensureCsrfCookie = async () => {
   if (getCsrfToken()) return
-  await fetch(`${API_BASE}/csrf/`, {
-    method: 'GET',
-    credentials: 'include',
-  })
+  try {
+    const res = await fetch(`${API_BASE}/csrf/`, {
+      method: 'GET',
+      credentials: 'include',
+    })
+    if (!res.ok) {
+      console.warn('CSRF cookie olishda xatolik:', res.status)
+    }
+  } catch (err) {
+    console.warn('CSRF cookie olishda xatolik:', err)
+  }
 }
 
 export const loginUser = async (username, password) => {
@@ -19,20 +26,43 @@ export const loginUser = async (username, password) => {
   formData.append('username', username)
   formData.append('password', password)
 
+  const csrfToken = getCsrfToken()
+  const headers = {}
+  if (csrfToken) {
+    headers['X-CSRFToken'] = csrfToken
+  }
+
   const res = await fetch(`${API_BASE}/`, {
     method: 'POST',
     body: formData,
     credentials: 'include',
-    headers: {
-      'X-CSRFToken': getCsrfToken(),
-    },
+    headers,
   })
 
-  if (!res.ok) {
-    throw new Error('Login failed')
+  if (res.status === 403) {
+    const text = await res.text().catch(() => '')
+    if (text.includes('CSRF') || text.includes('csrf')) {
+      throw new Error('CSRF xatolik. Sahifani yangilab qayta urinib ko\'ring.')
+    }
+    throw new Error('Kirish rad etildi. Login yoki parol noto\'g\'ri.')
   }
 
-  return res.text()
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    if (text.includes('noto\'g\'ri') || text.includes('notogri')) {
+      throw new Error('Foydalanuvchi nomi yoki parol noto\'g\'ri')
+    }
+    throw new Error(`Login xatolik: ${res.status}`)
+  }
+
+  // Django redirect qaytaradi, biz HTML olamiz
+  const html = await res.text()
+  // Muvaffaqiyatli login bo'lsa, redirect URL'ni topish
+  if (html.includes('admin') || html.includes('user') || html.includes('validator')) {
+    return { success: true, html }
+  }
+
+  return { success: true, html }
 }
 
 export const submitEvidence = async (formData) => {
