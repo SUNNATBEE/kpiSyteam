@@ -62,46 +62,51 @@ export const loginUser = async (username, password) => {
     throw new Error('CSRF token olinmadi. Sahifani yangilab qayta urinib ko\'ring.')
   }
   
-  const formData = new FormData()
-  formData.append('username', username)
-  formData.append('password', password)
-
+  // JSON formatida yuborish
   const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
     'X-CSRFToken': csrfToken,
+    'X-Requested-With': 'XMLHttpRequest',
   }
 
   const res = await fetch(`${API_BASE}/`, {
     method: 'POST',
-    body: formData,
+    body: JSON.stringify({ username, password }),
     credentials: 'include',
     mode: 'cors',
     headers,
   })
 
-  if (res.status === 403) {
-    const text = await res.text().catch(() => '')
-    if (text.includes('CSRF') || text.includes('csrf')) {
-      throw new Error('CSRF xatolik. Sahifani yangilab qayta urinib ko\'ring.')
+  // JSON response'ni o'qish
+  try {
+    const data = await res.json()
+    
+    if (data.success) {
+      return { success: true }
+    } else {
+      throw new Error(data.error || 'Login xatolik')
     }
-    throw new Error('Kirish rad etildi. Login yoki parol noto\'g\'ri.')
-  }
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    if (text.includes('noto\'g\'ri') || text.includes('notogri')) {
-      throw new Error('Foydalanuvchi nomi yoki parol noto\'g\'ri')
+  } catch (err) {
+    // Agar JSON emas bo'lsa, text o'qish
+    if (res.status === 403) {
+      const text = await res.text().catch(() => '')
+      if (text.includes('CSRF') || text.includes('csrf')) {
+        throw new Error('CSRF xatolik. Sahifani yangilab qayta urinib ko\'ring.')
+      }
+      throw new Error('Kirish rad etildi. Login yoki parol noto\'g\'ri.')
     }
-    throw new Error(`Login xatolik: ${res.status}`)
+    
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      if (text.includes('noto\'g\'ri') || text.includes('notogri')) {
+        throw new Error('Foydalanuvchi nomi yoki parol noto\'g\'ri')
+      }
+      throw new Error(`Login xatolik: ${res.status}`)
+    }
+    
+    throw err
   }
-
-  // Django redirect qaytaradi, biz HTML olamiz
-  const html = await res.text()
-  // Muvaffaqiyatli login bo'lsa, redirect URL'ni topish
-  if (html.includes('admin') || html.includes('user') || html.includes('validator')) {
-    return { success: true, html }
-  }
-
-  return { success: true, html }
 }
 
 export const submitEvidence = async (formData) => {

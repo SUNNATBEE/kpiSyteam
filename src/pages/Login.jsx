@@ -13,11 +13,15 @@ const Login = () => {
     setLoading(true)
     setError('')
     try {
-      await loginUser(form.username, form.password)
-      navigate('/')
+      const result = await loginUser(form.username, form.password)
+      if (result?.success) {
+        // Cookie saqlanishi uchun biroz kutamiz
+        await new Promise(resolve => setTimeout(resolve, 300))
+        // Sahifani yangilash yoki navigate
+        window.location.href = '/'
+      }
     } catch (err) {
       setError(err.message || "Foydalanuvchi nomi yoki parol noto'g'ri")
-    } finally {
       setLoading(false)
     }
   }

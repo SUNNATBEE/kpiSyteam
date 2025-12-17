@@ -11,11 +11,16 @@ import Validator from './pages/Validator'
 import Reports from './pages/Reports'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
+import ProtectedRoute from './components/auth/ProtectedRoute'
 
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <Layout />,
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'submissions', element: <Submissions /> },
