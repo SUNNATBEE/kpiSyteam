@@ -46,15 +46,43 @@ export const submitEvidence = async (formData) => {
     },
   })
 
+  if (res.status === 403) {
+    throw new Error('Avval tizimga kiring (login) keyin dalil yuklang.')
+  }
+
+  if (res.status === 404) {
+    throw new Error('Server endpoint topilmadi. Iltimos, admin bilan bog\'laning.')
+  }
+
   if (!res.ok) {
-    throw new Error('Submit failed')
+    const errorText = await res.text().catch(() => 'Noma\'lum xatolik')
+    throw new Error(`Yuklashda xatolik: ${errorText}`)
   }
 
   return res.text()
 }
 
-export const downloadReport = (periodId) => {
-  const url = `${API_BASE}/download-report/${periodId}`
-  window.open(url, '_blank', 'noopener')
+export const downloadReport = async (periodId) => {
+  await ensureCsrfCookie()
+  const res = await fetch(`${API_BASE}/download-report/${periodId}`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("Avval tizimga kiring (login) keyin hisobotni yuklab oling.")
+  }
+
+  if (!res.ok) {
+    throw new Error('Hisobotni yuklab olishda xatolik')
+  }
+
+  const blob = await res.blob()
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `hisobot_${periodId}.pdf`
+  link.click()
+  window.URL.revokeObjectURL(url)
 }
 

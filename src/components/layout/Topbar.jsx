@@ -1,7 +1,10 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { userProfile } from '../../data/mock'
 
 const Topbar = ({ onMenu = () => {} }) => {
+  const navigate = useNavigate()
+
   return (
     <header className="fixed left-0 right-0 top-0 z-20 border-b border-white/5 bg-slate-950/70 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-10">
@@ -18,10 +21,16 @@ const Topbar = ({ onMenu = () => {} }) => {
           >
             ≡ Menyu
           </button>
-          <button className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-slate-100 shadow-lg shadow-cyan-500/15 transition hover:-translate-y-0.5 hover:border-cyan-400/40 hover:shadow-cyan-400/20 sm:flex">
+          <button
+            className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-slate-100 shadow-lg shadow-cyan-500/15 transition hover:-translate-y-0.5 hover:border-cyan-400/40 hover:shadow-cyan-400/20 sm:flex"
+            onClick={() => navigate('/submissions')}
+          >
             <span className="text-cyan-300">+</span> Yangi topshiriq
           </button>
-          <button className="group relative rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-slate-100 shadow-lg shadow-fuchsia-500/20 transition hover:-translate-y-0.5 hover:border-fuchsia-400/60 hover:shadow-fuchsia-400/30">
+          <button
+            className="group relative rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-slate-100 shadow-lg shadow-fuchsia-500/20 transition hover:-translate-y-0.5 hover:border-fuchsia-400/60 hover:shadow-fuchsia-400/30"
+            onClick={() => navigate('/reports')}
+          >
             <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-fuchsia-500/0 via-fuchsia-500/5 to-cyan-400/0 blur-sm transition group-hover:via-fuchsia-500/15" />
             Hisobot olish
           </button>

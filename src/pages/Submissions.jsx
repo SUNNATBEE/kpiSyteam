@@ -8,6 +8,7 @@ const Submissions = () => {
   const [history, setHistory] = useState(submissionHistory)
   const [filter, setFilter] = useState('Barchasi')
   const [isSending, setIsSending] = useState(false)
+  const [error, setError] = useState(null)
   const [form, setForm] = useState({
     criteriaItem: criteriaTypes[0].items[0].id,
     date: new Date().toISOString().slice(0, 10),
@@ -33,6 +34,7 @@ const Submissions = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsSending(true)
+    setError(null)
     const payload = new FormData()
     payload.append('c_item', form.criteriaItem)
     payload.append('date', form.date)
@@ -54,8 +56,9 @@ const Submissions = () => {
         ...prev,
       ])
       setForm((state) => ({ ...state, description: '', file: null }))
-    } catch (error) {
-      console.error(error)
+    } catch (err) {
+      setError(err.message || 'Xatolik yuz berdi')
+      console.error(err)
     } finally {
       setIsSending(false)
     }
@@ -85,6 +88,11 @@ const Submissions = () => {
             </div>
           </div>
           <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+            {error && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                {error}
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1 text-sm">
                 <span className="text-slate-300">Kriteriya bandi</span>

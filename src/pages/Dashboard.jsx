@@ -1,10 +1,17 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import GlassPanel from '../components/common/GlassPanel'
 import StatCard from '../components/common/StatCard'
 import ProgressBar from '../components/common/ProgressBar'
 import { criteriaTypes, userProfile, periods } from '../data/mock'
+import { useNavigate } from 'react-router-dom'
 
 const Dashboard = () => {
+  const navigate = useNavigate()
+  const [profile, setProfile] = useState({
+    name: userProfile.name,
+    role: userProfile.role,
+  })
+
   const totals = useMemo(() => {
     const current = criteriaTypes.reduce(
       (acc, type) => {
@@ -23,7 +30,7 @@ const Dashboard = () => {
         <div>
           <p className="text-sm uppercase tracking-[0.2em] text-cyan-300">KPI monitoring</p>
           <h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">
-            {userProfile.name}
+            {profile.name}
           </h1>
           <p className="mt-2 text-slate-300">
             Davr boyicha ballaringizni korib boring, topshiriqlar va tasdiqlash holatini shu yerda
@@ -123,26 +130,63 @@ const Dashboard = () => {
           </div>
         </GlassPanel>
 
-        <GlassPanel className="bg-gradient-to-br from-slate-900/70 to-slate-800/70">
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Periodlar</p>
-          <p className="text-lg font-semibold text-white">Faol davrlar</p>
-          <div className="mt-4 space-y-3">
-            {periods.map((period, idx) => (
-              <div
-                key={period.id}
-                className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-3"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-white">{period.name}</p>
-                  <p className="text-xs text-slate-400">{period.range}</p>
+        <div className="space-y-4">
+          <GlassPanel className="bg-gradient-to-br from-slate-900/70 to-slate-800/70">
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Periodlar</p>
+            <p className="text-lg font-semibold text-white">Faol davrlar</p>
+            <div className="mt-4 space-y-3">
+              {periods.map((period, idx) => (
+                <div
+                  key={period.id}
+                  className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-3"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-white">{period.name}</p>
+                    <p className="text-xs text-slate-400">{period.range}</p>
+                  </div>
+                  <span className="rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 px-2 py-1 text-xs text-cyan-50">
+                    {idx === 0 ? 'Faol' : 'Reja'}
+                  </span>
                 </div>
-                <span className="rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 px-2 py-1 text-xs text-cyan-50">
-                  {idx === 0 ? 'Faol' : 'Reja'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </GlassPanel>
+              ))}
+            </div>
+            <button
+              onClick={() => navigate('/reports')}
+              className="mt-4 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_-18px_rgba(34,211,238,0.7)] transition hover:-translate-y-0.5"
+            >
+              Hisobot olish
+            </button>
+          </GlassPanel>
+
+          <GlassPanel>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Profil</p>
+            <p className="text-lg font-semibold text-white">Hodim ma'lumotlari</p>
+            <div className="mt-3 space-y-3">
+              <label className="block text-sm text-slate-300">
+                Ism-familya
+                <input
+                  value={profile.name}
+                  onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white outline-none ring-cyan-500/40 focus:ring"
+                />
+              </label>
+              <label className="block text-sm text-slate-300">
+                Lavozim
+                <input
+                  value={profile.role}
+                  onChange={(e) => setProfile((p) => ({ ...p, role: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white outline-none ring-cyan-500/40 focus:ring"
+                />
+              </label>
+              <button
+                onClick={() => navigate('/submissions')}
+                className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_-18px_rgba(34,211,238,0.7)] transition hover:-translate-y-0.5"
+              >
+                Yangi topshiriq yaratish
+              </button>
+            </div>
+          </GlassPanel>
+        </div>
       </div>
     </div>
   )
