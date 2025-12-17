@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 
 const ProtectedRoute = ({ children }) => {
+  // Boshlang'ich holat - loading (null)
   const [isAuthenticated, setIsAuthenticated] = useState(null)
 
   useEffect(() => {
@@ -17,15 +18,15 @@ const ProtectedRoute = ({ children }) => {
         
         if (res.ok) {
           const data = await res.json()
+          // Faqat authenticated === true bo'lsa, authenticated deb hisoblaymiz
           setIsAuthenticated(data.authenticated === true)
-        } else if (res.status === 401) {
-          // 401 - login qilmagan, bu normal holat
-          setIsAuthenticated(false)
         } else {
+          // 401 yoki boshqa xatolik - authenticated emas
           setIsAuthenticated(false)
         }
       } catch (err) {
         // Network xatolik - authenticated emas deb hisoblaymiz
+        console.warn('Auth check error:', err)
         setIsAuthenticated(false)
       }
     }
@@ -33,8 +34,8 @@ const ProtectedRoute = ({ children }) => {
     checkAuth()
   }, [])
 
+  // Loading holat
   if (isAuthenticated === null) {
-    // Loading holat
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-black">
         <div className="text-white">Yuklanmoqda...</div>
@@ -42,10 +43,12 @@ const ProtectedRoute = ({ children }) => {
     )
   }
 
+  // Agar authenticated bo'lmasa, login'ga redirect
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
 
+  // Authenticated bo'lsa, children'ni ko'rsatish
   return children
 }
 

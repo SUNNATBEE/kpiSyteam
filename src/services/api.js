@@ -125,7 +125,9 @@ export const loginUser = async (username, password) => {
   if (!res.ok) {
     try {
       const data = await res.json()
-      throw new Error(data.error || `Login xatolik: ${res.status}`)
+      // Backend'dan kelgan xatolik xabari
+      const errorMsg = data.error || data.message || `Login xatolik: ${res.status}`
+      throw new Error(errorMsg)
     } catch (jsonErr) {
       // Agar JSON emas bo'lsa, text o'qish
       if (res.status === 403) {
@@ -134,6 +136,17 @@ export const loginUser = async (username, password) => {
           throw new Error('CSRF xatolik. Sahifani yangilab qayta urinib ko\'ring.')
         }
         throw new Error('Kirish rad etildi. Login yoki parol noto\'g\'ri.')
+      }
+      
+      if (res.status === 400) {
+        const text = await res.text().catch(() => '')
+        if (text.includes('noto\'g\'ri') || text.includes('notogri') || text.includes('noto')) {
+          throw new Error('Foydalanuvchi nomi (yoki email) yoki parol noto\'g\'ri')
+        }
+        if (text.includes('kiritilishi')) {
+          throw new Error('Username va password kiritilishi kerak')
+        }
+        throw new Error('Foydalanuvchi nomi (yoki email) yoki parol noto\'g\'ri')
       }
       
       const text = await res.text().catch(() => '')
@@ -210,5 +223,82 @@ export const downloadReport = async (periodId) => {
   link.download = `hisobot_${periodId}.pdf`
   link.click()
   window.URL.revokeObjectURL(url)
+}
+
+export const downloadSubmissionsZip = async (periodId = null) => {
+  await ensureCsrfCookie()
+  const url = periodId 
+    ? `${API_BASE}/download-submissions-zip/${periodId}`
+    : `${API_BASE}/download-submissions-zip/`
+  
+  const res = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("Avval tizimga kiring (login) keyin fayllarni yuklab oling.")
+  }
+
+  if (res.status === 404) {
+    throw new Error('Yuklab olish uchun fayl topilmadi')
+  }
+
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => 'Noma\'lum xatolik')
+    try {
+      const errorData = JSON.parse(errorText)
+      throw new Error(errorData.error || 'Zip faylni yuklab olishda xatolik')
+    } catch {
+      throw new Error('Zip faylni yuklab olishda xatolik')
+    }
+  }
+
+  const blob = await res.blob()
+  const url_blob = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url_blob
+  link.download = `submissions_${periodId || 'all'}.zip`
+  link.click()
+  window.URL.revokeObjectURL(url_blob)
+}
+
+export const logoutUser = async () => {
+  try {
+    const csrfToken = getCsrfToken()
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+    }
+    
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken
+    }
+
+    const res = await fetch(`${API_BASE}/logout/`, {
+      method: 'POST',
+      credentials: 'include',
+      mode: 'cors',
+      headers,
+    })
+
+    if (res.ok) {
+      return { success: true }
+    }
+    
+    // Agar POST ishlamasa, GET bilan urinib ko'ramiz
+    const resGet = await fetch(`${API_BASE}/logout/`, {
+      method: 'GET',
+      credentials: 'include',
+      mode: 'cors',
+    })
+    
+    return { success: resGet.ok }
+  } catch (err) {
+    console.warn('Logout xatolik:', err)
+    // Xatolik bo'lsa ham logout qilamiz (frontend'da)
+    return { success: true }
+  }
 }
 

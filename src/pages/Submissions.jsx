@@ -1,14 +1,19 @@
 import React, { useMemo, useState } from 'react'
 import GlassPanel from '../components/common/GlassPanel'
 import StatusPill from '../components/common/StatusPill'
+import UploadProgress from '../components/common/UploadProgress'
 import { criteriaTypes, submissionHistory, periods } from '../data/mock'
-import { submitEvidence } from '../services/api'
+import { submitEvidence, downloadSubmissionsZip } from '../services/api'
+import { useToast } from '../context/ToastContext'
 
 const Submissions = () => {
   const [history, setHistory] = useState(submissionHistory)
   const [filter, setFilter] = useState('Barchasi')
   const [isSending, setIsSending] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState(null)
+  const [downloadingZip, setDownloadingZip] = useState(false)
+  const { success, error: showError } = useToast()
   const [form, setForm] = useState({
     criteriaItem: criteriaTypes[0].items[0].id,
     date: new Date().toISOString().slice(0, 10),
@@ -35,39 +40,85 @@ const Submissions = () => {
     e.preventDefault()
     setIsSending(true)
     setError(null)
+    setUploadProgress(0)
+    
     const payload = new FormData()
-    payload.append('c_item', form.criteriaItem)
+    
+    // c_item ID'ni integer'ga convert qilish (agar "1.1" bo'lsa, 1 qilamiz)
+    let cItemId = form.criteriaItem
+    if (typeof cItemId === 'string' && cItemId.includes('.')) {
+      // "1.1" -> 1
+      cItemId = parseInt(cItemId.split('.')[0], 10)
+    } else {
+      cItemId = parseInt(cItemId, 10)
+    }
+    
+    payload.append('c_item', cItemId)
     payload.append('date', form.date)
     payload.append('description', form.description)
-    payload.append('period', form.period)
+    if (form.period) payload.append('period', form.period)
     if (form.file) payload.append('file', form.file)
 
     try {
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval)
+            return 90
+          }
+          return prev + 10
+        })
+      }, 200)
+
       await submitEvidence(payload)
-      setHistory((prev) => [
-        {
-          id: Date.now(),
-          title: criteriaOptions.find((c) => c.id === form.criteriaItem)?.label || 'Yangi topshiriq',
-          status: 'Kutilmoqda',
-          score: 0,
-          date: form.date,
-          period: periods.find((p) => p.id === Number(form.period))?.name || '',
-        },
-        ...prev,
-      ])
+      
+      clearInterval(progressInterval)
+      setUploadProgress(100)
+      const newItem = {
+        id: Date.now(),
+        title: criteriaOptions.find((c) => c.id === form.criteriaItem)?.label || 'Yangi topshiriq',
+        status: 'Kutilmoqda',
+        score: 0,
+        date: form.date,
+        period: periods.find((p) => p.id === Number(form.period))?.name || '',
+      }
+      setHistory((prev) => [newItem, ...prev])
       setForm((state) => ({ ...state, description: '', file: null }))
+      setError(null)
+      success('Dalil muvaffaqiyatli yuklandi! Validator tekshirishni kuting.')
+      
+      // Progress'ni yopish
+      setTimeout(() => {
+        setUploadProgress(0)
+      }, 1000)
     } catch (err) {
-      setError(err.message || 'Xatolik yuz berdi')
+      const errorMsg = err.message || 'Xatolik yuz berdi'
+      setError(errorMsg)
+      showError(errorMsg)
+      setUploadProgress(0)
       console.error(err)
     } finally {
       setIsSending(false)
     }
   }
 
+  const handleDownloadZip = async () => {
+    setDownloadingZip(true)
+    try {
+      await downloadSubmissionsZip()
+      success('Barcha fayllar zip formatida yuklab olindi!')
+    } catch (err) {
+      showError(err.message || 'Zip faylni yuklab olishda xatolik')
+    } finally {
+      setDownloadingZip(false)
+    }
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <div>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex-1 min-w-0">
           <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">Submissiya</p>
           <h1 className="text-3xl font-semibold text-white">Dalillarni yuklash va kuzatish</h1>
         </div>
@@ -76,7 +127,7 @@ const Submissions = () => {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr] transform-3d">
         <GlassPanel>
           <div className="flex items-center justify-between">
             <div>
@@ -92,6 +143,13 @@ const Submissions = () => {
               <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
                 {error}
               </div>
+            )}
+            
+            {isSending && form.file && (
+              <UploadProgress 
+                progress={uploadProgress} 
+                fileName={form.file.name}
+              />
             )}
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1 text-sm">
@@ -151,9 +209,28 @@ const Submissions = () => {
                 <span className="text-slate-300">Dalil fayli</span>
                 <input
                   type="file"
-                  onChange={(e) => setForm({ ...form, file: e.target.files?.[0] || null })}
-                  className="block w-full rounded-xl border border-dashed border-white/20 bg-slate-900/60 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-500/20 file:px-3 file:py-2 file:text-cyan-50"
+                  accept=".pdf,.docx,.doc,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      const maxSize = 10 * 1024 * 1024 // 10MB
+                      if (file.size > maxSize) {
+                        showError('Fayl hajmi 10MB dan katta bo\'lmasligi kerak')
+                        e.target.value = ''
+                        return
+                      }
+                      setForm({ ...form, file })
+                    } else {
+                      setForm({ ...form, file: null })
+                    }
+                  }}
+                  className="block w-full rounded-xl border border-dashed border-white/20 bg-slate-900/60 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-500/20 file:px-3 file:py-2 file:text-cyan-50 hover:border-cyan-400/40 transition"
                 />
+                {form.file && (
+                  <p className="text-xs text-emerald-300 mt-1">
+                    ✓ {form.file.name} ({(form.file.size / 1024 / 1024).toFixed(2)} MB)
+                  </p>
+                )}
               </label>
             </div>
 
@@ -164,7 +241,7 @@ const Submissions = () => {
               <button
                 type="submit"
                 disabled={isSending}
-                className="relative inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_35px_-18px_rgba(34,211,238,0.75)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+                className="relative inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-[0_12px_35px_-18px_rgba(34,211,238,0.75)] button-3d"
               >
                 {isSending ? 'Yuborilmoqda...' : 'Yuklash'}
               </button>

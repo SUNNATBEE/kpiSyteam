@@ -1,9 +1,25 @@
-import React from 'react'
+import React, { useState } from 'react'
 import GlassPanel from '../components/common/GlassPanel'
 import { periods } from '../data/mock'
 import { downloadReport } from '../services/api'
+import { useToast } from '../context/ToastContext'
 
 const Reports = () => {
+  const [downloading, setDownloading] = useState({})
+  const { success, error: showError } = useToast()
+
+  const handleDownload = async (periodId) => {
+    setDownloading((prev) => ({ ...prev, [periodId]: true }))
+    try {
+      await downloadReport(periodId)
+      success('PDF hisobot muvaffaqiyatli yuklab olindi!')
+    } catch (err) {
+      showError(err.message || 'Hisobotni yuklab olishda xatolik')
+    } finally {
+      setDownloading((prev) => ({ ...prev, [periodId]: false }))
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
@@ -30,10 +46,11 @@ const Reports = () => {
                   Tayyor
                 </span>
                 <button
-                  onClick={() => downloadReport(period.id)}
-                  className="rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_30px_-18px_rgba(34,211,238,0.7)] transition hover:-translate-y-0.5"
+                  onClick={() => handleDownload(period.id)}
+                  disabled={downloading[period.id]}
+                  className="rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_30px_-18px_rgba(34,211,238,0.7)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  PDF yuklab olish
+                  {downloading[period.id] ? 'Yuklanmoqda...' : 'PDF yuklab olish'}
                 </button>
               </div>
             </div>

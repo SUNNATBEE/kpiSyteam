@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loginUser } from '../services/api'
+import { useToast } from '../context/ToastContext'
 
 const Login = () => {
   const navigate = useNavigate()
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const { success, error: showError } = useToast()
 
   // Sahifa yuklanganda CSRF token'ni olish
   useEffect(() => {
@@ -34,13 +36,16 @@ const Login = () => {
     try {
       const result = await loginUser(form.username, form.password)
       if (result?.success) {
+        success('Muvaffaqiyatli kirildi!')
         // Cookie saqlanishi uchun biroz kutamiz
         await new Promise(resolve => setTimeout(resolve, 300))
         // Sahifani yangilash yoki navigate
         window.location.href = '/'
       }
     } catch (err) {
-      setError(err.message || "Foydalanuvchi nomi yoki parol noto'g'ri")
+      const errorMsg = err.message || "Foydalanuvchi nomi yoki parol noto'g'ri"
+      setError(errorMsg)
+      showError(errorMsg)
       setLoading(false)
     }
   }
@@ -68,9 +73,17 @@ const Login = () => {
             <input
               type="text"
               value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-              className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-3 text-sm text-white outline-none ring-cyan-500/40 focus:ring"
+              onChange={(e) => setForm({ ...form, username: e.target.value.trim() })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && form.password) {
+                  e.preventDefault()
+                  handleSubmit(e)
+                }
+              }}
+              className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-3 text-sm text-white outline-none ring-cyan-500/40 focus:ring transition"
               placeholder="foydalanuvchi nomi"
+              autoComplete="username"
+              autoFocus
               required
             />
           </label>
@@ -80,8 +93,15 @@ const Login = () => {
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-3 text-sm text-white outline-none ring-cyan-500/40 focus:ring"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && form.username && form.password) {
+                  e.preventDefault()
+                  handleSubmit(e)
+                }
+              }}
+              className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-3 py-3 text-sm text-white outline-none ring-cyan-500/40 focus:ring transition"
               placeholder="********"
+              autoComplete="current-password"
               required
             />
           </label>

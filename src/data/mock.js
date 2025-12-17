@@ -2,7 +2,7 @@ export const userProfile = {
   name: 'Jasur Qodirov',
   role: 'Xodim | KPI monitoring',
   avatar:
-    'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=240&q=80',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=240&q=80',
   score: 82,
   delta: 12,
 }

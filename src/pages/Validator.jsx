@@ -2,16 +2,25 @@ import React, { useState } from 'react'
 import GlassPanel from '../components/common/GlassPanel'
 import StatusPill from '../components/common/StatusPill'
 import { validatorQueue } from '../data/mock'
+import { useToast } from '../context/ToastContext'
 
 const Validator = () => {
   const [queue, setQueue] = useState(validatorQueue)
+  const { success, info } = useToast()
 
   const handleDecision = (id, status) => {
+    const item = queue.find((i) => i.id === id)
     setQueue((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, status, score: status === "Ma'qullandi" ? item.score : 0 } : item,
       ),
     )
+    
+    if (status === "Ma'qullandi") {
+      success(`"${item?.title}" ma'qullandi!`)
+    } else {
+      info(`"${item?.title}" rad etildi.`)
+    }
   }
 
   const pending = queue.filter((item) => item.status === 'Kutilmoqda')

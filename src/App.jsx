@@ -12,6 +12,7 @@ import Reports from './pages/Reports'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import { ToastProvider } from './context/ToastContext'
 
 const router = createBrowserRouter([
   {
@@ -33,6 +34,10 @@ const router = createBrowserRouter([
   { path: '*', element: <NotFound /> },
 ])
 
-const App = () => <RouterProvider router={router} />
+const App = () => (
+  <ToastProvider>
+    <RouterProvider router={router} />
+  </ToastProvider>
+)
 
 export default App

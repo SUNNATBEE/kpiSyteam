@@ -19,7 +19,7 @@ const Layout = () => {
         <Sidebar open={isSidebarOpen} onClose={closeSidebar} />
         <div className="relative z-10 flex flex-col">
           <Topbar onMenu={() => setIsSidebarOpen(true)} />
-          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 pb-10 pt-24 sm:px-6 lg:px-10">
+          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 sm:gap-6 px-2 sm:px-4 lg:px-6 xl:px-10 pb-6 sm:pb-10 pt-20 sm:pt-24">
             <Outlet />
           </main>
         </div>
