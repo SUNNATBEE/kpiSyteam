@@ -66,9 +66,32 @@ const Login = () => {
       const result = await loginUser(form.username, form.password)
       if (result?.success) {
         success('Muvaffaqiyatli kirildi!')
+        
         // Cookie saqlanishi uchun biroz kutamiz
-        await new Promise(resolve => setTimeout(resolve, 300))
-        // Sahifani yangilash yoki navigate
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Authentication holatini qayta tekshirish
+        const API_BASE = import.meta.env.VITE_API_BASE || '/api'
+        try {
+          const authCheck = await fetch(`${API_BASE}/check-auth/`, {
+            method: 'GET',
+            credentials: 'include',
+            mode: 'cors',
+          })
+          
+          if (authCheck.ok) {
+            const authData = await authCheck.json()
+            if (authData.authenticated === true) {
+              // Authenticated bo'lsa, dashboard'ga o'tish
+              window.location.href = '/'
+              return
+            }
+          }
+        } catch (authErr) {
+          console.warn('Auth check after login failed:', authErr)
+        }
+        
+        // Agar auth check ishlamasa, sahifani yangilash
         window.location.href = '/'
       }
     } catch (err) {
