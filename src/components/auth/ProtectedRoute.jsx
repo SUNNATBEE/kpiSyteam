@@ -14,15 +14,36 @@ const ProtectedRoute = ({ children }) => {
           method: 'GET',
           credentials: 'include',
           mode: 'cors',
+          headers: {
+            'Accept': 'application/json',
+          },
         })
         
         if (res.ok) {
-          const data = await res.json()
-          // Faqat authenticated === true bo'lsa, authenticated deb hisoblaymiz
-          setIsAuthenticated(data.authenticated === true)
+          try {
+            const data = await res.json()
+            // Faqat authenticated === true bo'lsa, authenticated deb hisoblaymiz
+            const authenticated = data.authenticated === true
+            setIsAuthenticated(authenticated)
+            
+            // Debug uchun (faqat development'da)
+            if (import.meta.env.DEV && !authenticated) {
+              console.log('Auth check: User not authenticated', data)
+            }
+          } catch (jsonErr) {
+            // JSON parse xatolik - authenticated emas
+            console.warn('Auth check: Invalid JSON response', jsonErr)
+            setIsAuthenticated(false)
+          }
         } else {
           // 401 yoki boshqa xatolik - authenticated emas
-          setIsAuthenticated(false)
+          if (res.status === 401 || res.status === 403) {
+            setIsAuthenticated(false)
+          } else {
+            // Boshqa xatoliklar - xatolikni log qilamiz va authenticated emas deb hisoblaymiz
+            console.warn('Auth check: Unexpected status', res.status)
+            setIsAuthenticated(false)
+          }
         }
       } catch (err) {
         // Network xatolik - authenticated emas deb hisoblaymiz

@@ -8,10 +8,37 @@ const Login = () => {
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
   const { success, error: showError } = useToast()
 
-  // Sahifa yuklanganda CSRF token'ni olish
+  // Sahifa yuklanganda authentication holatini tekshirish
   useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const API_BASE = import.meta.env.VITE_API_BASE || '/api'
+        const res = await fetch(`${API_BASE}/check-auth/`, {
+          method: 'GET',
+          credentials: 'include',
+          mode: 'cors',
+        })
+        
+        if (res.ok) {
+          const data = await res.json()
+          // Agar authenticated bo'lsa, dashboard'ga redirect
+          if (data.authenticated === true) {
+            navigate('/', { replace: true })
+            return
+          }
+        }
+      } catch (err) {
+        // Xatolik bo'lsa, login sahifasida qolamiz
+        console.warn('Auth check error:', err)
+      } finally {
+        setCheckingAuth(false)
+      }
+    }
+
+    // CSRF token olish
     const getCsrfToken = async () => {
       try {
         const API_BASE = import.meta.env.VITE_API_BASE || '/api'
@@ -26,8 +53,10 @@ const Login = () => {
         // Xatolikni e'tiborsiz qoldiramiz
       }
     }
+
+    checkAuth()
     getCsrfToken()
-  }, [])
+  }, [navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -48,6 +77,15 @@ const Login = () => {
       showError(errorMsg)
       setLoading(false)
     }
+  }
+
+  // Loading holat
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-black">
+        <div className="text-white">Yuklanmoqda...</div>
+      </div>
+    )
   }
 
   return (
