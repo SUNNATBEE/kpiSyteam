@@ -123,38 +123,43 @@ export const loginUser = async (username, password) => {
 
   // JSON response'ni o'qish
   if (!res.ok) {
+    let errorMsg = `Login xatolik: ${res.status}`
+    
     try {
+      // Avval JSON sifatida o'qishga harakat qilamiz
       const data = await res.json()
-      // Backend'dan kelgan xatolik xabari
-      const errorMsg = data.error || data.message || `Login xatolik: ${res.status}`
-      throw new Error(errorMsg)
+      errorMsg = data.error || data.message || errorMsg
     } catch (jsonErr) {
       // Agar JSON emas bo'lsa, text o'qish
-      if (res.status === 403) {
-        const text = await res.text().catch(() => '')
-        if (text.includes('CSRF') || text.includes('csrf')) {
-          throw new Error('CSRF xatolik. Sahifani yangilab qayta urinib ko\'ring.')
+      try {
+        const text = await res.text()
+        
+        if (res.status === 403) {
+          if (text.includes('CSRF') || text.includes('csrf') || text.includes('Forbidden')) {
+            errorMsg = 'CSRF xatolik. Sahifani yangilab qayta urinib ko\'ring.'
+          } else {
+            errorMsg = 'Kirish rad etildi. Login yoki parol noto\'g\'ri.'
+          }
+        } else if (res.status === 400) {
+          if (text.includes('noto\'g\'ri') || text.includes('notogri') || text.includes('noto')) {
+            errorMsg = 'Foydalanuvchi nomi (yoki email) yoki parol noto\'g\'ri'
+          } else if (text.includes('kiritilishi') || text.includes('kiritilishi')) {
+            errorMsg = 'Username va password kiritilishi kerak'
+          } else if (text.includes('JSON')) {
+            errorMsg = 'Noto\'g\'ri so\'rov formati. Iltimos, qayta urinib ko\'ring.'
+          } else {
+            errorMsg = text || 'Foydalanuvchi nomi (yoki email) yoki parol noto\'g\'ri'
+          }
+        } else {
+          errorMsg = text || errorMsg
         }
-        throw new Error('Kirish rad etildi. Login yoki parol noto\'g\'ri.')
+      } catch (textErr) {
+        // Hech qanday response o'qib bo'lmadi
+        console.error('Response o\'qib bo\'lmadi:', textErr)
       }
-      
-      if (res.status === 400) {
-        const text = await res.text().catch(() => '')
-        if (text.includes('noto\'g\'ri') || text.includes('notogri') || text.includes('noto')) {
-          throw new Error('Foydalanuvchi nomi (yoki email) yoki parol noto\'g\'ri')
-        }
-        if (text.includes('kiritilishi')) {
-          throw new Error('Username va password kiritilishi kerak')
-        }
-        throw new Error('Foydalanuvchi nomi (yoki email) yoki parol noto\'g\'ri')
-      }
-      
-      const text = await res.text().catch(() => '')
-      if (text.includes('noto\'g\'ri') || text.includes('notogri')) {
-        throw new Error('Foydalanuvchi nomi yoki parol noto\'g\'ri')
-      }
-      throw new Error(`Login xatolik: ${res.status}`)
     }
+    
+    throw new Error(errorMsg)
   }
   
   // Muvaffaqiyatli response
