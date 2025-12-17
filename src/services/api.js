@@ -122,32 +122,41 @@ export const loginUser = async (username, password) => {
   })
 
   // JSON response'ni o'qish
-  try {
-    const data = await res.json()
-    
-    if (data.success) {
-      return { success: true }
-    } else {
-      throw new Error(data.error || 'Login xatolik')
-    }
-  } catch (err) {
-    // Agar JSON emas bo'lsa, text o'qish
-    if (res.status === 403) {
-      const text = await res.text().catch(() => '')
-      if (text.includes('CSRF') || text.includes('csrf')) {
-        throw new Error('CSRF xatolik. Sahifani yangilab qayta urinib ko\'ring.')
+  if (!res.ok) {
+    try {
+      const data = await res.json()
+      throw new Error(data.error || `Login xatolik: ${res.status}`)
+    } catch (jsonErr) {
+      // Agar JSON emas bo'lsa, text o'qish
+      if (res.status === 403) {
+        const text = await res.text().catch(() => '')
+        if (text.includes('CSRF') || text.includes('csrf')) {
+          throw new Error('CSRF xatolik. Sahifani yangilab qayta urinib ko\'ring.')
+        }
+        throw new Error('Kirish rad etildi. Login yoki parol noto\'g\'ri.')
       }
-      throw new Error('Kirish rad etildi. Login yoki parol noto\'g\'ri.')
-    }
-    
-    if (!res.ok) {
+      
       const text = await res.text().catch(() => '')
       if (text.includes('noto\'g\'ri') || text.includes('notogri')) {
         throw new Error('Foydalanuvchi nomi yoki parol noto\'g\'ri')
       }
       throw new Error(`Login xatolik: ${res.status}`)
     }
-    
+  }
+  
+  // Muvaffaqiyatli response
+  try {
+    const data = await res.json()
+    if (data.success) {
+      return { success: true }
+    } else {
+      throw new Error(data.error || 'Login xatolik')
+    }
+  } catch (err) {
+    // Agar JSON emas bo'lsa, lekin status 200 bo'lsa, muvaffaqiyatli deb hisoblaymiz
+    if (res.ok) {
+      return { success: true }
+    }
     throw err
   }
 }
