@@ -10,56 +10,64 @@ const getCsrfToken = () => {
 const ensureCsrfCookie = async () => {
   // Agar token bor bo'lsa, qaytaramiz
   if (getCsrfToken()) {
-    return
+    return getCsrfToken()
   }
   
   try {
-    // CSRF cookie olish
-    const res = await fetch(`${API_BASE}/csrf/`, {
-      method: 'GET',
-      credentials: 'include',
-      mode: 'cors',
-    })
-    
-    if (!res.ok) {
-      console.warn('CSRF cookie olishda xatolik:', res.status)
-      return
+    // CSRF cookie olish - bir necha marta urinib ko'ramiz
+    for (let i = 0; i < 3; i++) {
+      const res = await fetch(`${API_BASE}/csrf/`, {
+        method: 'GET',
+        credentials: 'include',
+        mode: 'cors',
+      })
+      
+      if (!res.ok) {
+        console.warn(`CSRF cookie olishda xatolik (${i + 1}/3):`, res.status)
+        if (i < 2) {
+          await new Promise(resolve => setTimeout(resolve, 200))
+          continue
+        }
+        return null
+      }
+      
+      // Cookie'ni o'qish uchun biroz kutamiz
+      await new Promise(resolve => setTimeout(resolve, 150))
+      
+      const token = getCsrfToken()
+      if (token) {
+        return token
+      }
     }
     
-    // Cookie'ni o'qish uchun biroz kutamiz
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    // Token hali ham yo'q bo'lsa, cookie'ni qo'lda o'qish
-    if (!getCsrfToken()) {
-      console.warn('CSRF token cookie\'dan o\'qilmadi')
-    }
+    console.warn('CSRF token cookie\'dan o\'qilmadi, barcha urinishlar tugadi')
+    return null
   } catch (err) {
     console.warn('CSRF cookie olishda xatolik:', err)
+    return null
   }
 }
 
 export const loginUser = async (username, password) => {
   // Avval CSRF cookie'ni olish
-  await ensureCsrfCookie()
+  let csrfToken = await ensureCsrfCookie()
   
-  // Token'ni qayta olish (cookie yangilangan bo'lishi mumkin)
-  let csrfToken = getCsrfToken()
-  
-  // Agar token hali ham yo'q bo'lsa, yana bir bor urinib ko'ramiz
+  // Agar token hali ham yo'q bo'lsa, cookie'dan qayta o'qish
   if (!csrfToken) {
-    await new Promise(resolve => setTimeout(resolve, 200))
     csrfToken = getCsrfToken()
+  }
+  
+  // Agar hali ham yo'q bo'lsa, xatolik
+  if (!csrfToken) {
+    throw new Error('CSRF token olinmadi. Sahifani yangilab qayta urinib ko\'ring.')
   }
   
   const formData = new FormData()
   formData.append('username', username)
   formData.append('password', password)
 
-  const headers = {}
-  if (csrfToken) {
-    headers['X-CSRFToken'] = csrfToken
-  } else {
-    console.warn('CSRF token topilmadi, lekin so\'rov yuborilmoqda')
+  const headers = {
+    'X-CSRFToken': csrfToken,
   }
 
   const res = await fetch(`${API_BASE}/`, {
