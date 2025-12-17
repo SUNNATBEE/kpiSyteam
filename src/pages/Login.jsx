@@ -67,31 +67,47 @@ const Login = () => {
       if (result?.success) {
         success('Muvaffaqiyatli kirildi!')
         
-        // Cookie saqlanishi uchun biroz kutamiz
-        await new Promise(resolve => setTimeout(resolve, 500))
+        // Cookie saqlanishi uchun biroz kutamiz (cookie'lar async saqlanadi)
+        await new Promise(resolve => setTimeout(resolve, 800))
         
         // Authentication holatini qayta tekshirish
         const API_BASE = import.meta.env.VITE_API_BASE || '/api'
-        try {
-          const authCheck = await fetch(`${API_BASE}/check-auth/`, {
-            method: 'GET',
-            credentials: 'include',
-            mode: 'cors',
-          })
-          
-          if (authCheck.ok) {
-            const authData = await authCheck.json()
-            if (authData.authenticated === true) {
-              // Authenticated bo'lsa, dashboard'ga o'tish
-              window.location.href = '/'
-              return
+        let authSuccess = false
+        
+        // Bir necha marta urinib ko'ramiz (cookie saqlanishi uchun vaqt kerak)
+        for (let i = 0; i < 3; i++) {
+          try {
+            const authCheck = await fetch(`${API_BASE}/check-auth/`, {
+              method: 'GET',
+              credentials: 'include',
+              mode: 'cors',
+              headers: {
+                'Accept': 'application/json',
+              },
+            })
+            
+            if (authCheck.ok) {
+              const authData = await authCheck.json()
+              if (authData.authenticated === true) {
+                authSuccess = true
+                break
+              }
+            }
+            
+            // Agar hali authenticated bo'lmasa, biroz kutamiz
+            if (i < 2) {
+              await new Promise(resolve => setTimeout(resolve, 300))
+            }
+          } catch (authErr) {
+            console.warn('Auth check after login failed:', authErr)
+            if (i < 2) {
+              await new Promise(resolve => setTimeout(resolve, 300))
             }
           }
-        } catch (authErr) {
-          console.warn('Auth check after login failed:', authErr)
         }
         
-        // Agar auth check ishlamasa, sahifani yangilash
+        // Agar authenticated bo'lsa yoki bo'lmasa ham, sahifani yangilash
+        // (cookie'lar browser'da saqlanadi, sahifa yangilanganda ishlaydi)
         window.location.href = '/'
       }
     } catch (err) {

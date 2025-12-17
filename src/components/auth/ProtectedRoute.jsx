@@ -10,41 +10,50 @@ const ProtectedRoute = ({ children }) => {
     const checkAuth = async () => {
       try {
         const API_BASE = import.meta.env.VITE_API_BASE || '/api'
-        const res = await fetch(`${API_BASE}/check-auth/`, {
-          method: 'GET',
-          credentials: 'include',
-          mode: 'cors',
-          headers: {
-            'Accept': 'application/json',
-          },
-        })
         
-        if (res.ok) {
+        // Bir necha marta urinib ko'ramiz (cookie saqlanishi uchun vaqt kerak bo'lishi mumkin)
+        let authenticated = false
+        
+        for (let attempt = 0; attempt < 2; attempt++) {
           try {
-            const data = await res.json()
-            // Faqat authenticated === true bo'lsa, authenticated deb hisoblaymiz
-            const authenticated = data.authenticated === true
-            setIsAuthenticated(authenticated)
+            const res = await fetch(`${API_BASE}/check-auth/`, {
+              method: 'GET',
+              credentials: 'include',
+              mode: 'cors',
+              headers: {
+                'Accept': 'application/json',
+              },
+            })
             
-            // Debug uchun (faqat development'da)
-            if (import.meta.env.DEV && !authenticated) {
-              console.log('Auth check: User not authenticated', data)
+            if (res.ok) {
+              try {
+                const data = await res.json()
+                // Faqat authenticated === true bo'lsa, authenticated deb hisoblaymiz
+                if (data.authenticated === true) {
+                  authenticated = true
+                  break
+                }
+              } catch (jsonErr) {
+                // JSON parse xatolik - authenticated emas
+                console.warn('Auth check: Invalid JSON response', jsonErr)
+              }
+            } else {
+              // 401 yoki 403 - authenticated emas
+              if (res.status === 401 || res.status === 403) {
+                // Bu normal, authenticated emas
+                break
+              }
             }
-          } catch (jsonErr) {
-            // JSON parse xatolik - authenticated emas
-            console.warn('Auth check: Invalid JSON response', jsonErr)
-            setIsAuthenticated(false)
-          }
-        } else {
-          // 401 yoki boshqa xatolik - authenticated emas
-          if (res.status === 401 || res.status === 403) {
-            setIsAuthenticated(false)
-          } else {
-            // Boshqa xatoliklar - xatolikni log qilamiz va authenticated emas deb hisoblaymiz
-            console.warn('Auth check: Unexpected status', res.status)
-            setIsAuthenticated(false)
+          } catch (fetchErr) {
+            console.warn('Auth check fetch error:', fetchErr)
+            if (attempt === 0) {
+              // Birinchi urinishda xatolik bo'lsa, biroz kutamiz
+              await new Promise(resolve => setTimeout(resolve, 300))
+            }
           }
         }
+        
+        setIsAuthenticated(authenticated)
       } catch (err) {
         // Network xatolik - authenticated emas deb hisoblaymiz
         console.warn('Auth check error:', err)
