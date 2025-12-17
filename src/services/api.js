@@ -1,19 +1,37 @@
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 const getCsrfToken = () => {
-  const match = document.cookie.match(/csrftoken=([^;]+)/)
-  return match ? match[1] : ''
+  // Bir nechta usul bilan CSRF token'ni topish
+  const match1 = document.cookie.match(/csrftoken=([^;]+)/)
+  const match2 = document.cookie.match(/csrftoken=([^;]+)/i)
+  return match1 ? match1[1] : (match2 ? match2[1] : '')
 }
 
 const ensureCsrfCookie = async () => {
-  if (getCsrfToken()) return
+  // Agar token bor bo'lsa, qaytaramiz
+  if (getCsrfToken()) {
+    return
+  }
+  
   try {
+    // CSRF cookie olish
     const res = await fetch(`${API_BASE}/csrf/`, {
       method: 'GET',
       credentials: 'include',
+      mode: 'cors',
     })
+    
     if (!res.ok) {
       console.warn('CSRF cookie olishda xatolik:', res.status)
+      return
+    }
+    
+    // Cookie'ni o'qish uchun biroz kutamiz
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    // Token hali ham yo'q bo'lsa, cookie'ni qo'lda o'qish
+    if (!getCsrfToken()) {
+      console.warn('CSRF token cookie\'dan o\'qilmadi')
     }
   } catch (err) {
     console.warn('CSRF cookie olishda xatolik:', err)
@@ -21,21 +39,34 @@ const ensureCsrfCookie = async () => {
 }
 
 export const loginUser = async (username, password) => {
+  // Avval CSRF cookie'ni olish
   await ensureCsrfCookie()
+  
+  // Token'ni qayta olish (cookie yangilangan bo'lishi mumkin)
+  let csrfToken = getCsrfToken()
+  
+  // Agar token hali ham yo'q bo'lsa, yana bir bor urinib ko'ramiz
+  if (!csrfToken) {
+    await new Promise(resolve => setTimeout(resolve, 200))
+    csrfToken = getCsrfToken()
+  }
+  
   const formData = new FormData()
   formData.append('username', username)
   formData.append('password', password)
 
-  const csrfToken = getCsrfToken()
   const headers = {}
   if (csrfToken) {
     headers['X-CSRFToken'] = csrfToken
+  } else {
+    console.warn('CSRF token topilmadi, lekin so\'rov yuborilmoqda')
   }
 
   const res = await fetch(`${API_BASE}/`, {
     method: 'POST',
     body: formData,
     credentials: 'include',
+    mode: 'cors',
     headers,
   })
 
