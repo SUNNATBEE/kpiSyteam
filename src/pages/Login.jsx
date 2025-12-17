@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loginUser } from '../services/api'
 
@@ -7,6 +7,23 @@ const Login = () => {
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Sahifa yuklanganda CSRF token'ni olish
+  useEffect(() => {
+    const getCsrfToken = async () => {
+      try {
+        const API_BASE = import.meta.env.VITE_API_BASE || '/api'
+        await fetch(`${API_BASE}/csrf/`, {
+          method: 'GET',
+          credentials: 'include',
+          mode: 'cors',
+        })
+      } catch (err) {
+        console.warn('CSRF token olishda xatolik:', err)
+      }
+    }
+    getCsrfToken()
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()

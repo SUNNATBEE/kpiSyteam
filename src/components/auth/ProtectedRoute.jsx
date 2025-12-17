@@ -18,11 +18,14 @@ const ProtectedRoute = ({ children }) => {
         if (res.ok) {
           const data = await res.json()
           setIsAuthenticated(data.authenticated === true)
+        } else if (res.status === 401) {
+          // 401 - login qilmagan, bu normal holat
+          setIsAuthenticated(false)
         } else {
           setIsAuthenticated(false)
         }
       } catch (err) {
-        console.warn('Auth check error:', err)
+        // Network xatolik - authenticated emas deb hisoblaymiz
         setIsAuthenticated(false)
       }
     }

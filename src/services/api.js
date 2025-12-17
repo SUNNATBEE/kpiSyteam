@@ -54,7 +54,25 @@ export const loginUser = async (username, password) => {
   
   // Agar token hali ham yo'q bo'lsa, cookie'dan qayta o'qish
   if (!csrfToken) {
+    await new Promise(resolve => setTimeout(resolve, 200))
     csrfToken = getCsrfToken()
+  }
+  
+  // Agar hali ham yo'q bo'lsa, yana bir bor urinib ko'ramiz
+  if (!csrfToken) {
+    try {
+      const res = await fetch(`${API_BASE}/csrf/`, {
+        method: 'GET',
+        credentials: 'include',
+        mode: 'cors',
+      })
+      if (res.ok) {
+        await new Promise(resolve => setTimeout(resolve, 200))
+        csrfToken = getCsrfToken()
+      }
+    } catch (err) {
+      console.warn('CSRF token olishda xatolik:', err)
+    }
   }
   
   // Agar hali ham yo'q bo'lsa, xatolik
