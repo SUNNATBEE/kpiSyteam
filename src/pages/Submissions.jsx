@@ -76,9 +76,15 @@ const Submissions = () => {
       clearInterval(progressInterval)
       setUploadProgress(100)
       
-      // Agar result object bo'lsa va success true bo'lsa, yoki 'OK' string bo'lsa
-      const isSuccess = (result && typeof result === 'object' && result.success) || result === 'OK'
+      // submitEvidence har doim { success: true } object qaytaradi yoki 'OK' string
+      // Agar result mavjud bo'lsa va success true bo'lsa, muvaffaqiyatli
+      const isSuccess = result && (
+        (typeof result === 'object' && result.success === true) || 
+        result === 'OK' ||
+        (typeof result === 'string' && result.trim() !== '')
+      )
       
+      // Agar isSuccess true bo'lsa, muvaffaqiyatli deb hisoblaymiz
       if (isSuccess) {
         const newItem = {
           id: Date.now(),

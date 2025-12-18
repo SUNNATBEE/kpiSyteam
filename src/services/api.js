@@ -249,7 +249,30 @@ export const submitEvidence = async (formData) => {
     }
   }
 
-  return res.text()
+  // Muvaffaqiyatli response (200 OK)
+  // Response JSON yoki text bo'lishi mumkin
+  try {
+    // Avval JSON sifatida parse qilib ko'ramiz
+    const contentType = res.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+      const jsonData = await res.json()
+      // Agar JSON'da success mavjud bo'lsa, uni qaytaramiz
+      if (jsonData && typeof jsonData === 'object' && jsonData.success !== undefined) {
+        return jsonData
+      }
+      // Agar success mavjud bo'lmasa, qo'shamiz
+      return { success: true, ...jsonData }
+    } else {
+      // Agar JSON bo'lmasa, text o'qamiz
+      const responseText = await res.text()
+      // Agar response bo'sh bo'lsa yoki mavjud bo'lsa, muvaffaqiyatli deb hisoblaymiz
+      return { success: true, message: 'Muvaffaqiyatli yuklandi', data: responseText }
+    }
+  } catch (parseErr) {
+    // Agar parse qilishda xatolik bo'lsa ham, muvaffaqiyatli deb hisoblaymiz
+    console.warn('Response parse qilishda xatolik, lekin muvaffaqiyatli deb hisoblaymiz:', parseErr)
+    return { success: true, message: 'Muvaffaqiyatli yuklandi' }
+  }
 }
 
 export const downloadReport = async (periodId) => {
