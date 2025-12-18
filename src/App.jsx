@@ -29,8 +29,9 @@ const router = createBrowserRouter([
       { path: 'reports', element: <Reports /> },
     ],
   },
-  { path: '/login', element: <Login /> },
-  { path: '/logout', element: <Navigate to="/login" replace /> },
+  // Vaqtincha login sahifasini o'chirib qo'yamiz
+  { path: '/login', element: <Navigate to="/" replace /> },
+  { path: '/logout', element: <Navigate to="/" replace /> },
   { path: '*', element: <NotFound /> },
 ])
 

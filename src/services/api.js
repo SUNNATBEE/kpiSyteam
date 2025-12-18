@@ -125,14 +125,17 @@ export const loginUser = async (username, password) => {
   if (!res.ok) {
     let errorMsg = `Login xatolik: ${res.status}`
     
+    // Response'ni bir marta o'qish (clone qilamiz)
+    const responseClone = res.clone()
+    
     try {
       // Avval JSON sifatida o'qishga harakat qilamiz
       const data = await res.json()
       errorMsg = data.error || data.message || errorMsg
     } catch (jsonErr) {
-      // Agar JSON emas bo'lsa, text o'qish
+      // Agar JSON emas bo'lsa, cloned response'dan text o'qish
       try {
-        const text = await res.text()
+        const text = await responseClone.text()
         
         if (res.status === 403) {
           if (text.includes('CSRF') || text.includes('csrf') || text.includes('Forbidden')) {
@@ -150,12 +153,17 @@ export const loginUser = async (username, password) => {
           } else {
             errorMsg = text || 'Foydalanuvchi nomi (yoki email) yoki parol noto\'g\'ri'
           }
+        } else if (res.status === 500) {
+          errorMsg = 'Server xatolik. Iltimos, keyinroq urinib ko\'ring yoki admin bilan bog\'laning.'
         } else {
           errorMsg = text || errorMsg
         }
       } catch (textErr) {
         // Hech qanday response o'qib bo'lmadi
         console.error('Response o\'qib bo\'lmadi:', textErr)
+        if (res.status === 500) {
+          errorMsg = 'Server xatolik. Iltimos, keyinroq urinib ko\'ring.'
+        }
       }
     }
     
