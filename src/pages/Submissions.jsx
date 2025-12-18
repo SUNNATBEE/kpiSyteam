@@ -1,13 +1,14 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import GlassPanel from '../components/common/GlassPanel'
 import StatusPill from '../components/common/StatusPill'
 import UploadProgress from '../components/common/UploadProgress'
 import { criteriaTypes, submissionHistory, periods } from '../data/mock'
-import { submitEvidence, downloadSubmissionsZip } from '../services/api'
+import { submitEvidence, downloadSubmissionsZip, getSubmissions } from '../services/api'
 import { useToast } from '../context/ToastContext'
 
 const Submissions = () => {
-  const [history, setHistory] = useState(submissionHistory)
+  const [history, setHistory] = useState([])
+  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('Barchasi')
   const [isSending, setIsSending] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -32,6 +33,29 @@ const Submissions = () => {
       ),
     [],
   )
+
+  // Backend'dan ma'lumotlarni olish
+  useEffect(() => {
+    const fetchSubmissions = async () => {
+      try {
+        setLoading(true)
+        const result = await getSubmissions(form.period || null)
+        if (result.success && result.data) {
+          setHistory(result.data)
+        } else {
+          // Agar xatolik bo'lsa, bo'sh ro'yxat
+          setHistory([])
+        }
+      } catch (err) {
+        console.error('Ma\'lumotlarni olishda xatolik:', err)
+        setHistory([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchSubmissions()
+  }, [form.period])
 
   const filteredHistory =
     filter === 'Barchasi' ? history : history.filter((item) => item.status === filter)
@@ -86,18 +110,19 @@ const Submissions = () => {
       
       // Agar isSuccess true bo'lsa, muvaffaqiyatli deb hisoblaymiz
       if (isSuccess) {
-        const newItem = {
-          id: Date.now(),
-          title: criteriaOptions.find((c) => c.id === form.criteriaItem)?.label || 'Yangi topshiriq',
-          status: 'Kutilmoqda',
-          score: 0,
-          date: form.date,
-          period: periods.find((p) => p.id === Number(form.period))?.name || '',
-        }
-        setHistory((prev) => [newItem, ...prev])
         setForm((state) => ({ ...state, description: '', file: null }))
         setError(null)
         success('Dalil muvaffaqiyatli yuklandi! Validator tekshirishni kuting.')
+        
+        // Backend'dan yangi ma'lumotlarni olish
+        try {
+          const result = await getSubmissions(form.period || null)
+          if (result.success && result.data) {
+            setHistory(result.data)
+          }
+        } catch (err) {
+          console.error('Yangi ma\'lumotlarni olishda xatolik:', err)
+        }
         
         // Progress'ni yopish
         setTimeout(() => {
@@ -117,17 +142,18 @@ const Submissions = () => {
         clearInterval(progressInterval)
         setUploadProgress(100)
         success('Dalil muvaffaqiyatli yuklandi!')
-        const newItem = {
-          id: Date.now(),
-          title: criteriaOptions.find((c) => c.id === form.criteriaItem)?.label || 'Yangi topshiriq',
-          status: 'Kutilmoqda',
-          score: 0,
-          date: form.date,
-          period: periods.find((p) => p.id === Number(form.period))?.name || '',
-        }
-        setHistory((prev) => [newItem, ...prev])
         setForm((state) => ({ ...state, description: '', file: null }))
         setError(null)
+        
+        // Backend'dan yangi ma'lumotlarni olish
+        try {
+          const result = await getSubmissions(form.period || null)
+          if (result.success && result.data) {
+            setHistory(result.data)
+          }
+        } catch (err) {
+          console.error('Yangi ma\'lumotlarni olishda xatolik:', err)
+        }
         
         // Progress'ni yopish
         setTimeout(() => {
@@ -310,7 +336,16 @@ const Submissions = () => {
             </div>
           </div>
           <div className="mt-4 space-y-3">
-            {filteredHistory.map((row) => (
+            {loading ? (
+              <div className="text-center py-8 text-slate-400">
+                Yuklanmoqda...
+              </div>
+            ) : filteredHistory.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                Hozircha hech qanday dalil yuklanmagan
+              </div>
+            ) : (
+              filteredHistory.map((row) => (
               <div
                 key={row.id}
                 className="rounded-xl border border-white/5 bg-white/5 p-4 shadow-inner shadow-cyan-500/10"

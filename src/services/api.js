@@ -337,6 +337,52 @@ export const downloadSubmissionsZip = async (periodId = null) => {
   window.URL.revokeObjectURL(url_blob)
 }
 
+export const getSubmissions = async (periodId = null) => {
+  await ensureCsrfCookie()
+  const csrfToken = getCsrfToken()
+  
+  const headers = {
+    'Accept': 'application/json',
+  }
+  if (csrfToken) {
+    headers['X-CSRFToken'] = csrfToken
+  }
+  
+  const url = periodId 
+    ? `${API_BASE}/user/get-submissions/?period=${periodId}`
+    : `${API_BASE}/user/get-submissions/`
+  
+  const res = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+    mode: 'cors',
+    headers,
+  })
+
+  if (!res.ok) {
+    // 403 yoki 401 xatolikni e'tiborsiz qoldiramiz
+    if (res.status === 403 || res.status === 401) {
+      console.warn('Authentication xatolik, lekin davom etamiz')
+      return { success: true, data: [] }
+    }
+    
+    try {
+      const errorData = await res.json()
+      throw new Error(errorData.error || `Ma'lumotlarni olishda xatolik: ${res.status}`)
+    } catch (jsonErr) {
+      throw new Error(`Ma'lumotlarni olishda xatolik: ${res.status}`)
+    }
+  }
+
+  try {
+    const data = await res.json()
+    return data
+  } catch (err) {
+    console.warn('Response parse qilishda xatolik:', err)
+    return { success: true, data: [] }
+  }
+}
+
 export const logoutUser = async () => {
   try {
     const csrfToken = getCsrfToken()
