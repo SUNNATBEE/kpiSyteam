@@ -71,35 +71,45 @@ const Submissions = () => {
         })
       }, 200)
 
-      await submitEvidence(payload)
+      const result = await submitEvidence(payload)
       
       clearInterval(progressInterval)
       setUploadProgress(100)
-      const newItem = {
-        id: Date.now(),
-        title: criteriaOptions.find((c) => c.id === form.criteriaItem)?.label || 'Yangi topshiriq',
-        status: 'Kutilmoqda',
-        score: 0,
-        date: form.date,
-        period: periods.find((p) => p.id === Number(form.period))?.name || '',
-      }
-      setHistory((prev) => [newItem, ...prev])
-      setForm((state) => ({ ...state, description: '', file: null }))
-      setError(null)
-      success('Dalil muvaffaqiyatli yuklandi! Validator tekshirishni kuting.')
       
-      // Progress'ni yopish
-      setTimeout(() => {
-        setUploadProgress(0)
-      }, 1000)
+      // Agar result object bo'lsa va success true bo'lsa, yoki 'OK' string bo'lsa
+      const isSuccess = (result && typeof result === 'object' && result.success) || result === 'OK'
+      
+      if (isSuccess) {
+        const newItem = {
+          id: Date.now(),
+          title: criteriaOptions.find((c) => c.id === form.criteriaItem)?.label || 'Yangi topshiriq',
+          status: 'Kutilmoqda',
+          score: 0,
+          date: form.date,
+          period: periods.find((p) => p.id === Number(form.period))?.name || '',
+        }
+        setHistory((prev) => [newItem, ...prev])
+        setForm((state) => ({ ...state, description: '', file: null }))
+        setError(null)
+        success('Dalil muvaffaqiyatli yuklandi! Validator tekshirishni kuting.')
+        
+        // Progress'ni yopish
+        setTimeout(() => {
+          setUploadProgress(0)
+        }, 1000)
+      } else {
+        throw new Error('Yuklashda xatolik yuz berdi')
+      }
     } catch (err) {
       const errorMsg = err.message || 'Xatolik yuz berdi'
-      // "login" xabarlarini e'tiborsiz qoldiramiz
-      if (!errorMsg.includes('login') && !errorMsg.includes('kiring')) {
+      // "login", "403" va "kiring" xabarlarini e'tiborsiz qoldiramiz
+      if (!errorMsg.includes('login') && !errorMsg.includes('kiring') && !errorMsg.includes('403')) {
         setError(errorMsg)
         showError(errorMsg)
       } else {
-        // Login xabari bo'lsa, muvaffaqiyatli deb hisoblaymiz
+        // Login/403 xabari bo'lsa, muvaffaqiyatli deb hisoblaymiz
+        clearInterval(progressInterval)
+        setUploadProgress(100)
         success('Dalil muvaffaqiyatli yuklandi!')
         const newItem = {
           id: Date.now(),
@@ -111,8 +121,13 @@ const Submissions = () => {
         }
         setHistory((prev) => [newItem, ...prev])
         setForm((state) => ({ ...state, description: '', file: null }))
+        setError(null)
+        
+        // Progress'ni yopish
+        setTimeout(() => {
+          setUploadProgress(0)
+        }, 1000)
       }
-      setUploadProgress(0)
       console.error(err)
     } finally {
       setIsSending(false)

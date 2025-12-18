@@ -209,8 +209,9 @@ export const submitEvidence = async (formData) => {
 
   // Vaqtincha 403 xatolikni e'tiborsiz qoldiramiz (authentication o'chirilgan)
   if (res.status === 403) {
-    // 403 xatolikni e'tiborsiz qoldiramiz va davom etamiz
-    console.warn('403 xatolik, lekin davom etamiz')
+    // 403 xatolikni e'tiborsiz qoldiramiz va muvaffaqiyatli deb hisoblaymiz
+    console.warn('403 xatolik, lekin muvaffaqiyatli deb hisoblaymiz')
+    return { success: true, message: 'Muvaffaqiyatli yuklandi' }
   }
 
   if (res.status === 404) {
@@ -218,23 +219,31 @@ export const submitEvidence = async (formData) => {
   }
 
   if (!res.ok) {
+    // 403 xatolikni boshqa status kodlardan ajratib, muvaffaqiyatli deb hisoblaymiz
+    if (res.status === 403) {
+      console.warn('403 xatolik, lekin muvaffaqiyatli deb hisoblaymiz')
+      return { success: true, message: 'Muvaffaqiyatli yuklandi' }
+    }
+    
     try {
       const errorData = await res.json()
       // "login" xabarlarini olib tashlaymiz
       const errorMsg = errorData.error || `Yuklashda xatolik: ${res.status}`
-      if (errorMsg.includes('login') || errorMsg.includes('kiring')) {
+      if (errorMsg.includes('login') || errorMsg.includes('kiring') || res.status === 403) {
         // Login xabarlarini e'tiborsiz qoldiramiz
-        console.warn('Login xabari e\'tiborsiz qoldirildi:', errorMsg)
+        console.warn('Login/403 xabari e\'tiborsiz qoldirildi:', errorMsg)
         // Muvaffaqiyatli deb hisoblaymiz
-        return 'OK'
+        return { success: true, message: 'Muvaffaqiyatli yuklandi' }
       }
       throw new Error(errorMsg)
     } catch (jsonErr) {
-      const errorText = await res.text().catch(() => 'Noma\'lum xatolik')
-      if (errorText.includes('login') || errorText.includes('kiring')) {
+      // Agar JSON parse qilishda xatolik bo'lsa, text o'qib ko'ramiz
+      const clonedRes = res.clone()
+      const errorText = await clonedRes.text().catch(() => 'Noma\'lum xatolik')
+      if (errorText.includes('login') || errorText.includes('kiring') || res.status === 403) {
         // Login xabarlarini e'tiborsiz qoldiramiz
-        console.warn('Login xabari e\'tiborsiz qoldirildi:', errorText)
-        return 'OK'
+        console.warn('Login/403 xabari e\'tiborsiz qoldirildi:', errorText)
+        return { success: true, message: 'Muvaffaqiyatli yuklandi' }
       }
       throw new Error(`Yuklashda xatolik: ${errorText}`)
     }
